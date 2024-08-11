@@ -33,6 +33,19 @@ autofixup = "!git log -n 50 --pretty=format:'%h | %s' --no-merges | while read -
 
 **In order for the above to function correctly, you must install the [fzf](https://github.com/junegunn/fzf") package.**
 
+- Set constants to your shell startup configuration file:
+
+``` bash
+# Constants for Git functions.
+
+# Colors for the script's messages.
+NO_COLOR='\e[0m'
+BOLD_CYAN='\e[1;36m'
+BOLD_GREEN='\e[1;32m'
+BOLD_YELLOW='\e[1;33m'
+BOLD_RED='\e[1;31m'
+```
+
 - Set functions to your shell startup configuration file:
 
 ``` bash
