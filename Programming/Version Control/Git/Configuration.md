@@ -133,6 +133,34 @@ get_base_branch() {
     echo "$base_branch"
 }
 
+# Function to fetch and rebase the current branch onto master/main with autostash enabled by default.
+# Usage:
+#   fetch_and_rebase true/false
+fetch_and_rebase() {
+    local autostash_enabled=${1:-true}
+    local base_branch
+
+    # Get the base branch using the `get_base_branch` function.
+    base_branch=$(get_base_branch)
+    if [ $? -ne 0 ]; then
+        log_error "Failed to determine the base branch!"
+        return 1
+    fi
+
+    # Check for uncommitted changes if autostash is disabled.
+    if [ "$autostash_enabled" = "false" ] && ! git diff-index --quiet HEAD --; then
+        log_error "Commit or stash your uncommitted changes before rebasing!"
+        return 1
+    fi
+
+    log_info "Fetching and rebasing onto '$base_branch'..."
+    if [ "$autostash_enabled" = "true" ]; then
+        git fetch && git rebase -i "$base_branch" --autosquash --autostash
+    else
+        git fetch && git rebase -i "$base_branch" --autosquash
+    fi
+}
+
 }
 ```
 
@@ -176,6 +204,6 @@ alias gstsd="git stash drop"
 alias gstss="git stash show"
 alias gfx="git commit --fixup"
 alias gafx="git autofixup"
-alias gfrb="git_fetch_and_rebase"
+alias gfrb="fetch_and_rebase"
 alias grcl="git prune && rm -rf ./.git/gc.log && git gc --prune=now && git remote prune origin"
 ```
