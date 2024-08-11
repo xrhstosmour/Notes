@@ -38,8 +38,18 @@ autofixup = "!git log -n 50 --pretty=format:'%h | %s' --no-merges | while read -
 ``` bash
 # Git functions.
 stash_with_default_name() {
-  local name="${1:-temp_$(date +'%d_%m_%YT%H_%M_%S')}"
-  git stash push -u -m "$name"
+	local name="${1:-temp_$(date +'%d_%m_%YT%H_%M_%S')}"
+	git stash push -u -m "$name"
+}
+
+git_fetch_and_rebase() {
+	if git show-ref --verify --quiet refs/remotes/origin/master; then
+		git fetch && git rebase -i origin/master --autosquash --autostash
+	elif git show-ref --verify --quiet refs/remotes/origin/main; then
+		git fetch && git rebase -i origin/main --autosquash --autostash
+	else
+		echo "Neither origin/master nor origin/main exists!"
+	fi
 }
 ```
 
@@ -83,6 +93,6 @@ alias gstsd="git stash drop"
 alias gstss="git stash show"
 alias gfx="git commit --fixup"
 alias gafx="git autofixup"
-alias gfrb="git fetch && git rebase -i origin/master --autosquash --autostash"
+alias gfrb="git_fetch_and_rebase"
 alias grcl="git prune && rm -rf ./.git/gc.log && git gc --prune=now && git remote prune origin"
 ```
