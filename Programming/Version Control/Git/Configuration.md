@@ -161,6 +161,103 @@ fetch_and_rebase() {
     fi
 }
 
+# Function to merge the current branch to master/main.
+# Usage:
+#   merge
+merge() {
+    # Terminate script on error.
+    set -e
+
+    local remote="origin"
+    local current_branch
+    local upstream_branch
+    local base_branch
+    local branch_to_be_merged
+    local new_commits_count
+    local no_ff_option=""
+    local merge_commit_msg=""
+
+    # Check if a rebase is ongoing.
+    if [ -d "$(git rev-parse --git-dir)/rebase-merge" ] || [ -d "$(git rev-parse --git-dir)/rebase-apply" ]; then
+        log_error "Rebase in progress, operation stopped!"
+        return 1
+    fi
+
+    # Checkout the specified branch if provided.
+    if [ -n "$1" ]; then
+        log_info "Checking out '$1' branch..."
+        git checkout "$1"
+    fi
+
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    log_info "Currently on '$current_branch' branch."
+
+    # Resolve upstream branch.
+    upstream_branch=$(git rev-parse --abbrev-ref "@{upstream}" 2>/dev/null || echo "$current_branch")
+    if ! git ls-remote --heads --exit-code "$remote" "$upstream_branch" &>/dev/null; then
+        read -rp "Please enter the branch name for fetch/push operations: " upstream_branch
+    fi
+    log_info "Branch tracking the remote branch '$upstream_branch'."
+
+    # Fetch and rebase current branch onto master/main.
+    fetch_and_rebase false
+    if [ $? -ne 0 ]; then
+        log_error "Rebase failed, resolve conflicts/errors before running the script again!"
+        return 1
+    fi
+
+    # Get the base branch using the `get_base_branch` function.
+    base_branch=$(get_base_branch)
+
+    # Force push current branch.
+    log_info "Force pushing '$current_branch' to '$upstream_branch'..."
+    git push "$remote" "HEAD:$upstream_branch" --force-with-lease
+
+    # Merge to master/main.
+    branch_to_be_merged="$remote/$upstream_branch"
+    log_info "Merging '$current_branch' to '$branch_to_be_merged'..."
+    git checkout "${base_branch#origin/}"
+    git reset --hard "$base_branch"
+
+    # Check if the branch to be merged has more than one commit.
+    new_commits_count=$(git rev-list --count "$base_branch..$branch_to_be_merged")
+    if [ "$new_commits_count" -gt 1 ]; then
+        no_ff_option="--no-ff"
+    fi
+
+    # Check if a PR number is provided.
+    if [ -n "$no_ff_option" ]; then
+        merge_commit_msg="-m 'Merge branch $branch_to_be_merged'"
+        if [ -n "$2" ]; then
+            merge_commit_msg="$merge_commit_msg -m 'Closes #$2'"
+        fi
+    fi
+
+    git merge "$branch_to_be_merged" $no_ff_option $merge_commit_msg
+
+    # Extract the branch name without the 'origin/' prefix.
+    local_branch="${base_branch#origin/}"
+
+    log_info "The commits listed below will be pushed to '$base_branch':"
+    git --no-pager log --decorate --graph --oneline "$local_branch...$base_branch"
+
+    # Prompt the user for confirmation.
+    log_warning "Would you like to push your local commits to '$base_branch'? (y/n) "
+    read push_to_master
+    if [[ "$push_to_master" =~ ^[Yy]$ ]]; then
+        git push "$remote" "$local_branch"
+        if [ $? -ne 0 ]; then
+            log_error "Push to '$base_branch' failed!"
+            git reset --hard HEAD^
+            git checkout "$current_branch"
+            return 1
+        fi
+        log_success "Push to '$base_branch' was successful!"
+    else
+        log_info "Push to '$base_branch' was aborted!"
+        git reset --hard HEAD^
+        git checkout "$current_branch"
+    fi
 }
 ```
 
@@ -206,4 +303,5 @@ alias gfx="git commit --fixup"
 alias gafx="git autofixup"
 alias gfrb="fetch_and_rebase"
 alias grcl="git prune && rm -rf ./.git/gc.log && git gc --prune=now && git remote prune origin"
+alias gmtm="merge"
 ```
