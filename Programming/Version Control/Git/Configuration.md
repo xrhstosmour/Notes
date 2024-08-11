@@ -107,19 +107,32 @@ log_error() {
     echo -e "${prefix}${BOLD_RED}$error${NO_COLOR}" >&2
 }
 
+# Function to stash changes with a default name.
+# Usage:
+#   stash_with_default_name "Stash message" or stash_with_default_name
 stash_with_default_name() {
-	local name="${1:-temp_$(date +'%d_%m_%YT%H_%M_%S')}"
-	git stash push -u -m "$name"
+    local name="${1:-temp_$(date +'%d_%m_%YT%H_%M_%S')}"
+    git stash push -u -m "$name"
 }
 
-git_fetch_and_rebase() {
-	if git show-ref --verify --quiet refs/remotes/origin/master; then
-		git fetch && git rebase -i origin/master --autosquash --autostash
-	elif git show-ref --verify --quiet refs/remotes/origin/main; then
-		git fetch && git rebase -i origin/main --autosquash --autostash
-	else
-		echo "Neither origin/master nor origin/main exists!"
-	fi
+# Function to get the base branch, either master or main.
+# Usage:
+#   get_base_branch
+get_base_branch() {
+    local base_branch
+
+    if git show-ref --verify --quiet refs/remotes/origin/master; then
+        base_branch="origin/master"
+    elif git show-ref --verify --quiet refs/remotes/origin/main; then
+        base_branch="origin/main"
+    else
+        log_error "Neither origin/master nor origin/main exists!"
+        return 1
+    fi
+
+    echo "$base_branch"
+}
+
 }
 ```
 
