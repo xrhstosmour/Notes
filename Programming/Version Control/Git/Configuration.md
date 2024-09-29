@@ -486,7 +486,7 @@ git_merge_to_default_branch() {
     default_branch=$(git_get_default_branch)
 
     # Force push current branch.
-    log_info "Force pushing \`$current_branch\` to \`$upstream_branch\`..."
+    log_info "Force pushing \`$current_branch\` to \`$remote/$upstream_branch\`..."
     git push "$remote" "HEAD:$upstream_branch" --force-with-lease
 
     # Merge to master/main.
